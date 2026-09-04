@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Produto — New 3D</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" type="image/png" href="img/favicon.png">
+</head>
+<body>
+
+<div id="a11y-root"></div>
+<header class="site-header" id="header"></header>
+
+<section class="product-detail container" id="detailRoot"></section>
+
+<footer class="site-footer" id="footer"></footer>
+
+<script src="js/data.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/media.js"></script>
+<script src="js/frete.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/cart.js"></script>
+<script src="js/accessibility.js"></script>
+<script src="js/main.js"></script>
+<script>
+  const params = new URLSearchParams(location.search);
+  const produto = getProdutoPorId(params.get("id"));
+  const root = document.getElementById("detailRoot");
+
+  if (!produto) {
+    root.innerHTML = `<div class="empty-state"><h2>Produto não encontrado</h2><p><a href="index.html" class="btn btn-outline" style="margin-top:16px;display:inline-flex;">Voltar ao catálogo</a></p></div>`;
+  } else {
+    const precisaPersonalizacao = produto.categoria === "personalizados";
+    root.innerHTML = `
+      <div class="breadcrumb"><a href="index.html">Catálogo</a> / ${getNomeCategoria(produto.categoria)} / ${produto.nome}</div>
+      <div class="detail-grid">
+        ${productMediaHTML(produto, { size: "detail" })}
+        <div class="detail-info">
+          <span class="card-cat">${getNomeCategoria(produto.categoria)}</span>
+          <h1>${produto.nome}</h1>
+          <div class="detail-price">${formatBRL(produto.preco)}</div>
+          <p class="detail-desc">${produto.descricao}</p>
+
+          <table class="spec-table">
+            <tr><td>Material</td><td>${produto.material}</td></tr>
+            <tr><td>Tempo de impressão</td><td>~${produto.tempo}h</td></tr>
+            <tr><td>Altura da peça</td><td>${produto.altura}mm</td></tr>
+          </table>
+
+          <div id="freteRoot"></div>
+
+          ${
+            precisaPersonalizacao
+              ? `<div class="personalize-field">
+                  <label for="personalizacao">Texto para personalizar</label>
+                  <input type="text" id="personalizacao" placeholder="Ex: Maria, ou nome da empresa" maxlength="30">
+                </div>`
+              : ""
+          }
+
+          <div class="qty-row">
+            <div class="qty-control">
+              <button type="button" id="qtyMinus" aria-label="Diminuir quantidade">−</button>
+              <input type="text" id="qtyInput" value="1" readonly>
+              <button type="button" id="qtyPlus" aria-label="Aumentar quantidade">+</button>
+            </div>
+            <button class="btn btn-primary" id="addBtn">Adicionar ao carrinho</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    let qty = 1;
+    const qtyInput = document.getElementById("qtyInput");
+    document.getElementById("qtyMinus").addEventListener("click", () => {
+      qty = Math.max(1, qty - 1);
+      qtyInput.value = qty;
+    });
+    document.getElementById("qtyPlus").addEventListener("click", () => {
+      qty += 1;
+      qtyInput.value = qty;
+    });
+    document.getElementById("addBtn").addEventListener("click", () => {
+      const personalizacao = precisaPersonalizacao ? document.getElementById("personalizacao").value.trim() : "";
+      addToCart(produto.id, qty, personalizacao);
+      renderHeader("catalogo");
+      showToast(`${produto.nome} adicionado ao carrinho`);
+    });
+
+    initMediaCarousels(root);
+    initFreteWidget(document.getElementById("freteRoot"));
+  }
+
+  initPage(produto ? "catalogo" : null);
+</script>
+</body>
+</html>

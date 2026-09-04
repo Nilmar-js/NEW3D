@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minha conta — New 3D</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" type="image/png" href="img/favicon.png">
+</head>
+<body>
+
+<div id="a11y-root"></div>
+<header class="site-header" id="header"></header>
+
+<section class="account-section container">
+  <div id="accountRoot"></div>
+</section>
+
+<footer class="site-footer" id="footer"></footer>
+
+<script src="js/data.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/cart.js"></script>
+<script src="js/accessibility.js"></script>
+<script src="js/main.js"></script>
+<script>
+  const user = getCurrentUser();
+  const root = document.getElementById("accountRoot");
+
+  if (!user) {
+    location.href = "login.html?redirect=conta.html";
+  } else {
+    const orders = getOrders(user.email);
+    const iniciais = user.nome
+      .split(" ")
+      .slice(0, 2)
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase();
+
+    root.innerHTML = `
+      <div class="account-grid">
+        <aside class="account-panel">
+          <div class="avatar">${iniciais}</div>
+          <h3 style="margin-bottom:2px;">${user.nome}</h3>
+          <p style="color:var(--text-muted); font-size:0.85rem; margin:0 0 20px;">${user.email}</p>
+          <button class="btn btn-outline btn-block" id="logoutBtn">Sair da conta</button>
+        </aside>
+        <div>
+          <h2 style="margin-bottom:20px;">Meus pedidos</h2>
+          ${
+            orders.length === 0
+              ? `<p style="color:var(--text-muted);">Você ainda não fez nenhum pedido. <a href="index.html" style="color:var(--accent-2);">Ver catálogo</a></p>`
+              : orders
+                  .map(
+                    (o) => `
+              <div class="order-card">
+                <div class="order-head">
+                  <span>${new Date(o.data).toLocaleString("pt-BR")}</span>
+                  <span>${formatBRL(o.total)}</span>
+                </div>
+                ${o.pagamento ? `<div class="order-payment">Pagamento: ${o.pagamento.metodo === "pix" ? "Pix" : "Cartão terminado em " + (o.pagamento.detalhes.final || "----")}</div>` : ""}
+                ${o.itens
+                  .map(
+                    (it) => `<div class="order-item"><span>${it.qtd}× ${it.nome}${it.personalizacao ? ` ("${it.personalizacao}")` : ""}</span><span>${formatBRL(it.preco * it.qtd)}</span></div>`
+                  )
+                  .join("")}
+              </div>`
+                  )
+                  .join("")
+          }
+        </div>
+      </div>
+    `;
+
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      logoutUser();
+      location.href = "index.html";
+    });
+  }
+
+  initPage(null);
+</script>
+</body>
+</html>

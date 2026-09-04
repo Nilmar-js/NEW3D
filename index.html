@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>New 3D — Peças impressas em 3D</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" type="image/png" href="img/favicon.png">
+</head>
+<body>
+
+<div id="a11y-root"></div>
+<header class="site-header" id="header"></header>
+
+<section class="hero-banner blueprint-bg">
+  <div class="container hero-banner-grid">
+    <div class="hero-banner-left">
+      <img src="img/logo-wordmark.png" alt="New 3D Impressões" class="hero-logo-mark">
+      <p class="lead">Impressões 3D personalizadas do seu jeito, sempre com as tendências mais quentes do mundo da impressão 3D.</p>
+      <div class="hero-actions">
+        <a href="#catalogo" class="btn btn-primary">Ver catálogo</a>
+        <a href="#categorias" class="btn btn-outline">Explorar categorias</a>
+      </div>
+    </div>
+    <div class="hero-banner-right">
+      <h2 class="promo-title">Mais vendidos</h2>
+      <div class="promo-carousel" id="promoCarousel" style="position:relative;">
+        <div class="promo-track" id="promoTrack"></div>
+        <button class="promo-arrow promo-arrow-prev" id="promoPrev" aria-label="Anterior">&#8249;</button>
+        <button class="promo-arrow promo-arrow-next" id="promoNext" aria-label="Próximo">&#8250;</button>
+        <div class="promo-dots" id="promoDots"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="category-strip container" id="categorias">
+  <h2>Categorias</h2>
+  <div class="category-row" id="categoryRow"></div>
+</section>
+
+<section class="catalog-section container" id="catalogo">
+  <div class="catalog-head">
+    <h2>Catálogo completo</h2>
+  </div>
+  <div class="filter-bar" id="filterBar"></div>
+  <div class="product-grid" id="productGrid"></div>
+</section>
+
+<footer class="site-footer" id="footer"></footer>
+
+<script src="js/data.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/media.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/cart.js"></script>
+<script src="js/accessibility.js"></script>
+<script src="js/main.js"></script>
+<script>
+  let categoriaAtiva = "todas";
+
+  function renderFiltros() {
+    const bar = document.getElementById("filterBar");
+    const chips = [{ slug: "todas", nome: "Todas" }, ...CATEGORIAS];
+    bar.innerHTML = chips
+      .map(
+        (c) =>
+          `<button class="filter-chip ${categoriaAtiva === c.slug ? "active" : ""}" data-slug="${c.slug}">${c.nome}</button>`
+      )
+      .join("");
+    bar.querySelectorAll(".filter-chip").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        categoriaAtiva = btn.dataset.slug;
+        renderFiltros();
+        renderCategoryRow();
+        renderGrid();
+      });
+    });
+  }
+
+  function renderGrid() {
+    const grid = document.getElementById("productGrid");
+    const lista = categoriaAtiva === "todas" ? PRODUTOS : PRODUTOS.filter((p) => p.categoria === categoriaAtiva);
+    grid.innerHTML = lista
+      .map(
+        (p) => `
+      <a class="product-card" href="produto.html?id=${p.id}">
+        <div class="card-thumb">
+          <span class="card-mat-chip">${p.material}</span>
+          ${productMediaHTML(p, { size: "card" })}
+        </div>
+        <div class="card-body">
+          <span class="card-cat">${getNomeCategoria(p.categoria)}</span>
+          <span class="card-name">${p.nome}</span>
+          <p class="card-desc">${p.descricao}</p>
+          <div class="card-foot">
+            <span class="card-price">${formatBRL(p.preco)}</span>
+          </div>
+        </div>
+      </a>`
+      )
+      .join("");
+    initMediaCarousels(grid);
+  }
+
+  const DESTAQUE_IDS = [13, 22, 26, 1, 27, 28]; // chaveiro, cubo infinito, ore e confie, vaso, latinha cerveja, latinha monster
+  const PROMOS = DESTAQUE_IDS.map((id) => getProdutoPorId(id)).filter(Boolean);
+  let promoIdx = 0;
+  let promoTimer = null;
+
+  function renderPromo() {
+    document.getElementById("promoTrack").innerHTML = PROMOS.map(
+      (p) => `
+      <div class="promo-slide">
+        <div class="promo-eyebrow">🔥 Mais vendido</div>
+        <a href="produto.html?id=${p.id}" class="promo-media">${productMediaHTML(p, { size: "card" })}</a>
+        <h3>${p.nome}</h3>
+        <div class="promo-price">${formatBRL(p.preco)}</div>
+        <a href="produto.html?id=${p.id}" class="btn btn-primary btn-sm">Ver produto</a>
+      </div>`
+    ).join("");
+    initMediaCarousels(document.getElementById("promoTrack"));
+    document.getElementById("promoDots").innerHTML = PROMOS.map(
+      (_, i) => `<button type="button" class="promo-dot${i === 0 ? " is-active" : ""}" data-idx="${i}" aria-label="Slide ${i + 1}"></button>`
+    ).join("");
+    goToPromo(0);
+    document.querySelectorAll(".promo-dot").forEach((dot) => {
+      dot.addEventListener("click", () => goToPromo(Number(dot.dataset.idx)));
+    });
+    document.getElementById("promoPrev").addEventListener("click", () => goToPromo((promoIdx - 1 + PROMOS.length) % PROMOS.length));
+    document.getElementById("promoNext").addEventListener("click", () => goToPromo((promoIdx + 1) % PROMOS.length));
+    restartPromoAutoplay();
+  }
+
+  function goToPromo(idx) {
+    promoIdx = idx;
+    document.getElementById("promoTrack").style.transform = `translateX(-${idx * 100}%)`;
+    document.querySelectorAll(".promo-dot").forEach((d, i) => d.classList.toggle("is-active", i === idx));
+  }
+
+  function restartPromoAutoplay() {
+    clearInterval(promoTimer);
+    promoTimer = setInterval(() => goToPromo((promoIdx + 1) % PROMOS.length), 4500);
+  }
+
+  const CATEGORIA_ICONES = {
+    decoracao: "🏺", casa: "🏠", gadgets: "📱", personalizados: "🎁",
+    geek: "🎲", infantil: "🧩", fidget: "🌀",
+  };
+
+  function renderCategoryRow() {
+    const row = document.getElementById("categoryRow");
+    row.innerHTML = CATEGORIAS.map(
+      (c) => `
+      <button type="button" class="category-item${categoriaAtiva === c.slug ? " active" : ""}" data-slug="${c.slug}">
+        <span class="category-circle">${CATEGORIA_ICONES[c.slug] || "🔧"}</span>
+        <span class="cat-label">${c.nome}</span>
+      </button>`
+    ).join("");
+    row.querySelectorAll(".category-item").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        categoriaAtiva = btn.dataset.slug;
+        renderFiltros();
+        renderCategoryRow();
+        renderGrid();
+        document.getElementById("catalogo").scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+  }
+
+  initPage("catalogo");
+  renderPromo();
+  renderCategoryRow();
+  renderFiltros();
+  renderGrid();
+</script>
+</body>
+</html>
