@@ -4,12 +4,12 @@
 
 const CATEGORIAS = [
   { slug: "decoracao", nome: "Decoração" },
+  { slug: "fidget", nome: "Fidget Toys" },
   { slug: "casa", nome: "Utilidades / Casa" },
   { slug: "gadgets", nome: "Gadgets / Tecnologia" },
   { slug: "personalizados", nome: "Presentes / Personalizados" },
   { slug: "geek", nome: "Colecionáveis / Geek" },
   { slug: "infantil", nome: "Infantil / Educativo" },
-  { slug: "fidget", nome: "Fidget Toys" },
 ];
 
 const PRODUTOS = [
