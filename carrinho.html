@@ -23,6 +23,7 @@
 <script src="js/icons.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/cart.js"></script>
+<script src="js/frete.js"></script>
 <script src="js/accessibility.js"></script>
 <script src="js/main.js"></script>
 <script src="js/payment.js"></script>
@@ -42,7 +43,10 @@
       return;
     }
 
-    const total = getCartTotal();
+    const subtotal = getCartTotal();
+    const freteSalvo = JSON.parse(sessionStorage.getItem("new3d_frete") || "null");
+    const frete = freteSalvo || { gratis: true, dias: null, valor: 0 };
+    const total = subtotal + Number(frete.valor || 0);
 
     root.innerHTML = `
       <div class="cart-layout">
@@ -68,10 +72,24 @@
             .join("")}
         </div>
         <div class="summary-box">
-          <div class="summary-row"><span>Subtotal</span><span>${formatBRL(total)}</span></div>
-          <div class="summary-row"><span>Frete</span><span>Grátis</span></div>
-          <div class="summary-row total"><span>Total</span><span>${formatBRL(total)}</span></div>
-          <button class="btn btn-primary btn-block" id="checkoutBtn" style="margin-top:16px;">Finalizar compra</button>
+          <div class="checkout-frete" id="checkoutFrete">
+            <div class="checkout-frete-head">
+              <strong>🚚 Calcular frete</strong>
+              <span>Simulação escolar</span>
+            </div>
+            <div class="frete-row">
+              <input type="text" id="checkoutCep" inputmode="numeric" maxlength="9" placeholder="Digite seu CEP" value="${freteSalvo?.cep || ""}">
+              <button type="button" class="btn btn-outline btn-sm" id="checkoutFreteBtn">Calcular</button>
+            </div>
+            <div class="frete-result" id="checkoutFreteResult">
+              ${freteSalvo ? `<div class="frete-option"><span>Entrega para ${freteSalvo.cep}</span><strong>${freteSalvo.gratis ? "Grátis" : formatBRL(freteSalvo.valor)}</strong></div><p class="frete-prazo">Chega em até ${freteSalvo.dias} dias úteis</p>` : `<p class="frete-prazo">Informe o CEP para calcular o valor e o prazo.</p>`}
+            </div>
+          </div>
+          <div class="summary-row"><span>Subtotal</span><span>${formatBRL(subtotal)}</span></div>
+          <div class="summary-row"><span>Frete</span><span id="summaryFrete">${freteSalvo ? (freteSalvo.gratis ? "Grátis" : formatBRL(freteSalvo.valor)) : "Calcule acima"}</span></div>
+          <div class="summary-row total"><span>Total</span><span id="summaryTotal">${formatBRL(total)}</span></div>
+          <button class="btn btn-primary btn-block" id="checkoutBtn" style="margin-top:16px;" ${freteSalvo ? "" : "disabled"}>Finalizar compra</button>
+          <p class="checkout-note">* Frete e pagamento são fictícios e existem apenas para demonstração do projeto.</p>
         </div>
       </div>
     `;
@@ -89,6 +107,32 @@
       });
     });
 
+    document.getElementById("checkoutFreteBtn").addEventListener("click", () => {
+      const cep = document.getElementById("checkoutCep").value.trim();
+      const resultEl = document.getElementById("checkoutFreteResult");
+      const btn = document.getElementById("checkoutBtn");
+      if (!cep || cep.replace(/\\D/g, "").length !== 8) {
+        resultEl.innerHTML = `<p class="frete-erro">Digite um CEP válido com 8 números.</p>`;
+        btn.disabled = true;
+        return;
+      }
+
+      const calculado = calcularFreteFicticio(cep);
+      const dadosFrete = { cep, ...calculado };
+      sessionStorage.setItem("new3d_frete", JSON.stringify(dadosFrete));
+
+      resultEl.innerHTML = `
+        <div class="frete-option">
+          <span>Entrega para ${cep}</span>
+          <strong>${calculado.gratis ? "Grátis" : formatBRL(calculado.valor)}</strong>
+        </div>
+        <p class="frete-prazo">Chega em até ${calculado.dias} dias úteis</p>
+      `;
+      document.getElementById("summaryFrete").textContent = calculado.gratis ? "Grátis" : formatBRL(calculado.valor);
+      document.getElementById("summaryTotal").textContent = formatBRL(subtotal + calculado.valor);
+      btn.disabled = false;
+    });
+
     document.getElementById("checkoutBtn").addEventListener("click", () => {
       const user = getCurrentUser();
       if (!user) {
@@ -96,18 +140,32 @@
         setTimeout(() => (location.href = "login.html?redirect=carrinho.html"), 700);
         return;
       }
-      const total = getCartTotal();
+
+      const freteAtual = JSON.parse(sessionStorage.getItem("new3d_frete") || "null");
+      if (!freteAtual) {
+        showToast("Calcule o frete antes de finalizar");
+        return;
+      }
+
+      const totalFinal = subtotal + Number(freteAtual.valor || 0);
+      sessionStorage.setItem("new3d_checkout_draft", JSON.stringify({ subtotal, frete: freteAtual, total: totalFinal }));
+      location.href = "checkout.html";
+      return;
+
       openPaymentModal({
-        total,
+        total: totalFinal,
         onConfirm: (pagamento) => {
           const order = {
             data: new Date().toISOString(),
             itens: getCartWithDetails().map((i) => ({ nome: i.produto.nome, qtd: i.qtd, preco: i.produto.preco, personalizacao: i.personalizacao })),
-            total,
+            subtotal,
+            frete: freteAtual,
+            total: totalFinal,
             pagamento,
           };
           saveOrder(user.email, order);
           clearCart();
+          sessionStorage.removeItem("new3d_frete");
           renderHeader("catalogo");
           showToast("Pagamento confirmado! Abrindo WhatsApp pra combinar a entrega...");
           openWhatsappOrder(order, user);
