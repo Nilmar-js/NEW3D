@@ -48,7 +48,7 @@
           <button class="btn btn-outline btn-block" id="logoutBtn">Sair da conta</button>
         </aside>
         <div>
-          <h2 style="margin-bottom:20px;">Meus pedidos</h2>
+          <div class="account-heading"><div><span class="eyebrow">HISTÓRICO</span><h2 style="margin-bottom:6px;">Minhas compras</h2><p>Veja seus pedidos, pagamentos e dados de entrega.</p></div><a href="index.html" class="btn btn-primary btn-sm">Continuar comprando</a></div>
           ${
             orders.length === 0
               ? `<p style="color:var(--text-muted);">Você ainda não fez nenhum pedido. <a href="index.html" style="color:var(--accent-2);">Ver catálogo</a></p>`
@@ -57,9 +57,11 @@
                     (o) => `
               <div class="order-card">
                 <div class="order-head">
-                  <span>${new Date(o.data).toLocaleString("pt-BR")}</span>
+                  <div><strong>Pedido #${String(o.data).replace(/\D/g, "").slice(-6) || "000000"}</strong><span>${new Date(o.data).toLocaleString("pt-BR")}</span></div>
                   <span>${formatBRL(o.total)}</span>
                 </div>
+                <div class="order-status"><span class="status-dot"></span>${o.status || "Pedido confirmado"}</div>
+                ${o.entrega ? `<div class="order-delivery">🚚 ${o.entrega.modalidade || "Entrega padrão"} · ${o.entrega.cidade || ""}/${o.entrega.estado || ""}</div>` : ""}
                 ${o.pagamento ? `<div class="order-payment">Pagamento: ${o.pagamento.metodo === "pix" ? "Pix" : "Cartão terminado em " + (o.pagamento.detalhes.final || "----")}</div>` : ""}
                 ${o.itens
                   .map(
