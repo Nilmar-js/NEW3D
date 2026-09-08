@@ -36,6 +36,10 @@ function buildWhatsappOrderMessage(order, user) {
     linhas.push(linha);
   });
   linhas.push("");
+  if (order.frete) {
+    linhas.push(`Subtotal: ${formatBRL(order.subtotal)}`);
+    linhas.push(`Frete: ${order.frete.gratis ? "Grátis" : formatBRL(order.frete.valor)} — até ${order.frete.dias} dias úteis`);
+  }
   linhas.push(`Total: ${formatBRL(order.total)}`);
   linhas.push(`Pagamento: ${order.pagamento.metodo === "pix" ? "Pix" : "Cartão terminado em " + (order.pagamento.detalhes.final || "----")}`);
   linhas.push(`Cliente: ${user.nome} (${user.email})`);
