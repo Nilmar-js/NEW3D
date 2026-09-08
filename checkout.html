@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Finalizar compra — New 3D</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" type="image/png" href="img/favicon.png">
+</head>
+<body>
+<div id="a11y-root"></div>
+<header class="site-header" id="header"></header>
+
+<section class="checkout-page container">
+  <div class="checkout-title">
+    <div><span class="eyebrow">NEW3D / CHECKOUT</span><h2>Finalizar compra</h2><p>Revise seus dados antes de confirmar o pedido.</p></div>
+    <a href="carrinho.html" class="btn btn-outline btn-sm">← Voltar ao carrinho</a>
+  </div>
+  <div id="checkoutRoot"></div>
+</section>
+<footer class="site-footer" id="footer"></footer>
+
+<script src="js/data.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/cart.js"></script>
+<script src="js/frete.js"></script>
+<script src="js/accessibility.js"></script>
+<script src="js/main.js"></script>
+<script src="js/payment.js"></script>
+<script>
+const draft = JSON.parse(sessionStorage.getItem("new3d_checkout_draft") || "null");
+const user = getCurrentUser();
+const root = document.getElementById("checkoutRoot");
+
+if (!user) {
+  location.href = "login.html?redirect=checkout.html";
+} else if (!draft || !draft.frete) {
+  location.href = "carrinho.html";
+} else {
+  const items = getCartWithDetails();
+  if (!items.length) { location.href = "index.html"; }
+  const subtotal = Number(draft.subtotal);
+  const frete = Number(draft.frete.valor || 0);
+  const total = Number(draft.total);
+  root.innerHTML = `
+    <div class="checkout-grid">
+      <main>
+        <div class="checkout-card">
+          <div class="checkout-card-title"><span>01</span><div><h3>Dados de entrega</h3><p>Informações fictícias para a simulação.</p></div></div>
+          <div class="field-row">
+            <div class="field"><label for="nomeEntrega">Nome completo</label><input id="nomeEntrega" value="${user.nome}" required></div>
+            <div class="field"><label for="telefoneEntrega">Telefone</label><input id="telefoneEntrega" placeholder="(62) 99999-9999" required></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label for="cepEntrega">CEP</label><input id="cepEntrega" value="${draft.frete.cep || ""}" readonly></div>
+            <div class="field"><label for="estadoEntrega">Estado</label><input id="estadoEntrega" placeholder="GO" maxlength="2" required></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label for="cidadeEntrega">Cidade</label><input id="cidadeEntrega" placeholder="Aparecida de Goiânia" required></div>
+            <div class="field"><label for="bairroEntrega">Bairro</label><input id="bairroEntrega" placeholder="Setor" required></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label for="ruaEntrega">Rua / Avenida</label><input id="ruaEntrega" placeholder="Rua das Impressões" required></div>
+            <div class="field"><label for="numeroEntrega">Número</label><input id="numeroEntrega" placeholder="123" required></div>
+          </div>
+          <div class="field"><label for="complementoEntrega">Complemento <small>(opcional)</small></label><input id="complementoEntrega" placeholder="Apto, casa, referência..."></div>
+        </div>
+
+        <div class="checkout-card">
+          <div class="checkout-card-title"><span>02</span><div><h3>Forma de entrega</h3><p>Escolha uma opção fictícia.</p></div></div>
+          <label class="delivery-option is-selected"><input type="radio" name="delivery" value="normal" checked><div><strong>Entrega padrão</strong><small>Até ${draft.frete.dias || 7} dias úteis</small></div><b>${draft.frete.gratis ? "Grátis" : formatBRL(frete)}</b></label>
+          <label class="delivery-option"><input type="radio" name="delivery" value="express"><div><strong>Entrega expressa</strong><small>Até 3 dias úteis</small></div><b>${formatBRL(Math.max(9.90, frete + 8))}</b></label>
+        </div>
+      </main>
+      <aside class="checkout-summary">
+        <h3>Resumo do pedido</h3>
+        <div class="checkout-items">${items.map(i => `<div class="checkout-item"><span>${i.qtd}× ${i.produto.nome}</span><b>${formatBRL(i.subtotal)}</b></div>`).join("")}</div>
+        <div class="summary-row"><span>Subtotal</span><span>${formatBRL(subtotal)}</span></div>
+        <div class="summary-row"><span>Frete</span><span id="checkoutFreteValue">${draft.frete.gratis ? "Grátis" : formatBRL(frete)}</span></div>
+        <div class="summary-row total"><span>Total</span><span id="checkoutTotal">${formatBRL(total)}</span></div>
+        <button class="btn btn-primary btn-block" id="continuePayment">Continuar para pagamento</button>
+        <p class="checkout-note">🔒 Ambiente de demonstração. Nenhum pagamento real será realizado.</p>
+      </aside>
+    </div>`;
+
+  document.querySelectorAll('input[name="delivery"]').forEach(r => r.addEventListener('change', () => {
+    document.querySelectorAll('.delivery-option').forEach(x => x.classList.remove('is-selected'));
+    r.closest('.delivery-option').classList.add('is-selected');
+    const value = r.value === 'express' ? Math.max(9.90, frete + 8) : frete;
+    document.getElementById('checkoutFreteValue').textContent = value === 0 ? 'Grátis' : formatBRL(value);
+    document.getElementById('checkoutTotal').textContent = formatBRL(subtotal + value);
+  }));
+
+  document.getElementById('continuePayment').addEventListener('click', () => {
+    const required = ['nomeEntrega','telefoneEntrega','estadoEntrega','cidadeEntrega','bairroEntrega','ruaEntrega','numeroEntrega'];
+    if (required.some(id => !document.getElementById(id).value.trim())) { showToast('Preencha os dados de entrega'); return; }
+    const delivery = document.querySelector('input[name="delivery"]:checked').value;
+    const freteFinal = delivery === 'express' ? Math.max(9.90, frete + 8) : frete;
+    const dadosEntrega = { nome: nomeEntrega.value.trim(), telefone: telefoneEntrega.value.trim(), cep: cepEntrega.value.trim(), estado: estadoEntrega.value.trim().toUpperCase(), cidade: cidadeEntrega.value.trim(), bairro: bairroEntrega.value.trim(), rua: ruaEntrega.value.trim(), numero: numeroEntrega.value.trim(), complemento: complementoEntrega.value.trim(), modalidade: delivery === 'express' ? 'Entrega expressa' : 'Entrega padrão' };
+    const orderTotal = subtotal + freteFinal;
+    openPaymentModal({ total: orderTotal, onConfirm: (pagamento) => {
+      const order = { data: new Date().toISOString(), status: 'Pedido confirmado', itens: getCartWithDetails().map(i => ({ nome:i.produto.nome, qtd:i.qtd, preco:i.produto.preco, personalizacao:i.personalizacao })), subtotal, frete: {...draft.frete, valor:freteFinal, modalidade:dadosEntrega.modalidade}, total:orderTotal, pagamento, entrega:dadosEntrega };
+      saveOrder(user.email, order); clearCart(); sessionStorage.removeItem('new3d_frete'); sessionStorage.removeItem('new3d_checkout_draft');
+      showToast('Pedido confirmado!'); openWhatsappOrder(order, user); setTimeout(() => location.href='conta.html', 1000);
+    }});
+  });
+}
+initPage('catalogo');
+</script>
+</body>
+</html>
